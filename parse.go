@@ -29,9 +29,16 @@ func MustParse(data []byte, v interface{}, r *regexp.Regexp) {
 // fields correspond to named capture groups of r. The following types are
 // supported:
 //
-// - If the field implements encoding.TextUnmarshaler, then that is used.
+//   - If the field implements encoding.TextUnmarshaler, then that is used.
+//   - If the field is a string or a []byte, the matching string is copied as-is.
+//   - If the field is any integer type, the captured string is parsed as a
+//     decimal integer.
 //
-// FIXME: finish documenting
+// If the struct value contains any other exported fields, Parse returns a
+// non-nil error.
+//
+// If r contains any named capture groups which don't correspond to a field in
+// v, Parse returns a non-nil error. Unnamed capture groups are ignored.
 func Parse(data []byte, v interface{}, r *regexp.Regexp) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr {
@@ -60,7 +67,7 @@ func Parse(data []byte, v interface{}, r *regexp.Regexp) error {
 
 var parserCache sync.Map
 
-// FIXME: document
+// ErrNoMatch is returned by Parse if the regular expression did not match the
 var ErrNoMatch = errors.New("hasty: provided regular expression did not match data")
 
 type parser struct {
@@ -122,10 +129,11 @@ func (p *parser) parse(data []byte, rv reflect.Value, r *regexp.Regexp) error {
 	if matches == nil {
 		return ErrNoMatch
 	}
-	names := r.SubexpNames()
-	for i := 1; i < len(matches); i++ {
+	for i, name := range r.SubexpNames() {
+		if name == "" {
+			continue
+		}
 		match := matches[i]
-		name := names[i]
 		fp, ok := p.byName[name]
 		if !ok {
 			return fmt.Errorf("hasty: no target field for capture group %q", name)

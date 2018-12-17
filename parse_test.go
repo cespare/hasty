@@ -72,6 +72,12 @@ func TestParse(t *testing.T) {
 			`^(?P<S>\w+)\s*=\s*(?P<T>.+)$`,
 			&unmarshaler{"date", time.Date(2018, 12, 15, 0, 0, 0, 0, time.UTC)},
 		},
+		{
+			"a b 1",
+			new(stringInt),
+			`^(?P<S>\w) (.) (?P<I>\d)$`,
+			&stringInt{S: "a", I: 1},
+		},
 	} {
 		r := regexp.MustCompile(tt.r)
 		if err := Parse([]byte(tt.in), tt.v, r); err != nil {
